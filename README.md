@@ -4,8 +4,6 @@
 
 Ce projet utilise Ansible pour automatiser l'installation et le déploiement de GitLab dans une infrastructure Docker.
 
-## Étapes d'installation
-
 1. Cloner le dépôt
     git clone https://github.com/azat44/tp-ansibleAH
     cd gitlab-ansible
