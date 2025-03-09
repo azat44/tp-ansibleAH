@@ -1,0 +1,84 @@
+---
+- name: Déploiement de GitLab
+  hosts: targets
+  become: yes
+  vars:
+    gitlab_version: "15.10.0"
+    gitlab_domain: "gitlab.example.com"  
+  
+  tasks:
+    - name: Ajout du dépôt GitLab
+      apt_repository:
+        repo: "deb https://packages.gitlab.com/gitlab/gitlab-ce/ubuntu/ {{ ansible_distribution_release }} main"
+        state: present
+        filename: gitlab_gitlab-ce
+      ignore_errors: yes
+    
+    - name: Ajout de la clé GPG GitLab
+      apt_key:
+        url: https://packages.gitlab.com/gitlab/gitlab-ce/gpgkey
+        state: present
+      ignore_errors: yes
+    
+    - name: Installation du paquet GitLab
+      apt:
+        name: "gitlab-ce={{ gitlab_version }}"
+        state: present
+        update_cache: yes
+      environment:
+        EXTERNAL_URL: "https://{{ gitlab_domain }}"
+      ignore_errors: yes
+    
+    - name: Copie du fichier de configuration GitLab
+      template:
+        src: templates/gitlab.rb.j2
+        dest: /etc/gitlab/gitlab.rb
+        owner: root
+        group: root
+        mode: '0600'
+      notify: reconfigure gitlab
+      ignore_errors: yes
+    
+    - name: Configuration du pare-feu pour GitLab
+      ufw:
+        rule: allow
+        port: "{{ item }}"
+        proto: tcp
+      with_items:
+        - 22   # SSH
+        - 80   # HTTP
+        - 443  # HTTPS
+      ignore_errors: yes
+    
+    - name: Vérification du statut de GitLab
+      command: gitlab-rake gitlab:check
+      register: gitlab_check
+      changed_when: false
+      ignore_errors: yes
+      
+    - name: Affichage du résultat de la vérification
+      debug:
+        var: gitlab_check.stdout_lines
+      ignore_errors: yes
+    
+    - name: Création du premier utilisateur admin
+      command: >
+        gitlab-rails runner "
+        user = User.new(
+          username: 'admin',
+          password: '{{ lookup('password', '/dev/null length=16 chars=ascii_letters,digits') }}',
+          password_confirmation: '{{ lookup('password', '/dev/null length=16 chars=ascii_letters,digits') }}',
+          email: 'admin@example.com',
+          name: 'Administrator',
+          admin: true
+        );
+        user.skip_confirmation!;
+        user.save!;
+        "
+      when: false  
+      ignore_errors: yes
+  
+  handlers:
+    - name: reconfigure gitlab
+      command: gitlab-ctl reconfigure
+      ignore_errors: yes

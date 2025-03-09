@@ -1,0 +1,149 @@
+---
+- name: Installation et configuration de l'infrastructure pour GitLab
+  hosts: targets
+  become: yes
+  vars:
+    postgresql_version: 13
+    ruby_version: "2.7"
+    gitlab_version: "15.10.0"
+  
+  tasks:
+    - name: Mise à jour des paquets système
+      apt:
+        update_cache: yes
+        upgrade: dist
+      ignore_errors: yes
+    
+    - name: Installation des dépendances générales
+      apt:
+        name:
+          - curl
+          - openssh-server
+          - ca-certificates
+          - tzdata
+          - perl
+          - gnupg
+          - lsb-release
+          - build-essential
+        state: present
+      ignore_errors: yes
+    
+    - name: Installation de NGINX
+      apt:
+        name: nginx
+        state: present
+      ignore_errors: yes
+    
+    - name: Configuration du service NGINX
+      systemd:
+        name: nginx
+        enabled: yes
+        state: started
+      ignore_errors: yes
+    
+    - name: Ajout du dépôt PostgreSQL
+      apt_repository:
+        repo: deb http://apt.postgresql.org/pub/repos/apt/ {{ ansible_distribution_release }}-pgdg main
+        state: present
+      ignore_errors: yes
+    
+    - name: Ajout de la clé GPG PostgreSQL
+      apt_key:
+        url: https://www.postgresql.org/media/keys/ACCC4CF8.asc
+        state: present
+      ignore_errors: yes
+    
+    - name: Installation de PostgreSQL
+      apt:
+        name:
+          - postgresql-{{ postgresql_version }}
+          - postgresql-contrib-{{ postgresql_version }}
+          - libpq-dev
+        state: present
+        update_cache: yes
+      ignore_errors: yes
+    
+    - name: Configuration du service PostgreSQL
+      systemd:
+        name: postgresql
+        enabled: yes
+        state: started
+      ignore_errors: yes
+    
+    - name: Création de l'utilisateur GitLab dans PostgreSQL
+      become: yes
+      become_user: postgres
+      postgresql_user:
+        name: gitlab
+        password: "{{ lookup('password', '/dev/null length=20 chars=ascii_letters,digits') }}"
+        encrypted: yes
+        state: present
+      ignore_errors: yes
+    
+    - name: Création de la base de données GitLab
+      become: yes
+      become_user: postgres
+      postgresql_db:
+        name: gitlabhq_production
+        owner: gitlab
+        encoding: UTF8
+        template: template0
+        state: present
+      ignore_errors: yes
+    
+    - name: Installation des dépendances Ruby
+      apt:
+        name:
+          - ruby{{ ruby_version }}
+          - ruby{{ ruby_version }}-dev
+          - bundler
+        state: present
+      ignore_errors: yes
+    
+    - name: Installation de Node.js
+      apt:
+        name:
+          - nodejs
+          - npm
+        state: present
+      ignore_errors: yes
+    
+    - name: Installation de Yarn
+      npm:
+        name: yarn
+        global: yes
+        state: present
+      ignore_errors: yes
+    
+    - name: Création des répertoires pour GitLab
+      file:
+        path: "{{ item }}"
+        state: directory
+        owner: git
+        group: git
+        mode: '0755'
+      with_items:
+        - /home/git
+        - /var/opt/gitlab
+        - /etc/gitlab
+      ignore_errors: yes
+    
+    - name: Création de l'utilisateur git
+      user:
+        name: git
+        home: /home/git
+        shell: /bin/bash
+        state: present
+      ignore_errors: yes
+
+    - name: Configuration des permissions pour GitLab
+      file:
+        path: "{{ item }}"
+        state: directory
+        owner: git
+        group: git
+        mode: '0755'
+      with_items:
+        - /var/log/gitlab
+        - /var/opt/gitlab/backups
+      ignore_errors: yes

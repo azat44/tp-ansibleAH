@@ -1,0 +1,59 @@
+version: '3'
+
+services:
+  node-manager:
+    build:
+      context: ./docker/node-manager
+      dockerfile: Dockerfile
+    container_name: node-manager
+    hostname: node-manager
+    volumes:
+      - ./playbooks:/playbooks
+      - ./inventory:/inventory
+      - ./ssh:/root/.ssh
+    networks:
+      gitlab-network:
+        ipv4_address: 172.20.0.2
+
+  target1:
+    build:
+      context: ./docker/target
+      dockerfile: Dockerfile
+    container_name: target1
+    hostname: target1
+    volumes:
+      - gitlab-data-1:/var/opt/gitlab
+      - gitlab-logs-1:/var/log/gitlab
+      - gitlab-config-1:/etc/gitlab
+    networks:
+      gitlab-network:
+        ipv4_address: 172.20.0.3
+
+  target2:
+    build:
+      context: ./docker/target
+      dockerfile: Dockerfile
+    container_name: target2
+    hostname: target2
+    volumes:
+      - gitlab-data-2:/var/opt/gitlab
+      - gitlab-logs-2:/var/log/gitlab
+      - gitlab-config-2:/etc/gitlab
+    networks:
+      gitlab-network:
+        ipv4_address: 172.20.0.4
+
+networks:
+  gitlab-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
+
+volumes:
+  gitlab-data-1:
+  gitlab-logs-1:
+  gitlab-config-1:
+  gitlab-data-2:
+  gitlab-logs-2:
+  gitlab-config-2:

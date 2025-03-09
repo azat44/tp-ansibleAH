@@ -1,0 +1,53 @@
+external_url 'https://{{ gitlab_domain }}'
+
+gitlab_rails['db_adapter'] = "postgresql"
+gitlab_rails['db_encoding'] = "unicode"
+gitlab_rails['db_database'] = "gitlabhq_production"
+gitlab_rails['db_username'] = "gitlab"
+gitlab_rails['db_password'] = "{{ gitlab_db_password }}"
+gitlab_rails['db_host'] = "localhost"
+gitlab_rails['db_port'] = 5432
+
+nginx['enable'] = true
+nginx['client_max_body_size'] = '250m'
+nginx['redirect_http_to_https'] = true
+nginx['ssl_certificate'] = "/etc/gitlab/ssl/{{ gitlab_domain }}.crt"
+nginx['ssl_certificate_key'] = "/etc/gitlab/ssl/{{ gitlab_domain }}.key"
+
+letsencrypt['enable'] = true
+letsencrypt['contact_emails'] = ['admin@example.com']
+letsencrypt['auto_renew'] = true
+
+gitlab_rails['gitlab_email_enabled'] = true
+gitlab_rails['gitlab_email_from'] = 'gitlab@{{ gitlab_domain }}'
+gitlab_rails['gitlab_email_display_name'] = 'GitLab'
+gitlab_rails['gitlab_email_reply_to'] = 'noreply@{{ gitlab_domain }}'
+
+gitlab_rails['uploads_directory'] = '/var/opt/gitlab/uploads'
+gitlab_rails['gitlab_shell_ssh_port'] = 22
+
+gitlab_rails['backup_path'] = '/var/opt/gitlab/backups'
+gitlab_rails['backup_keep_time'] = 604800  # 7 jours en secondes
+
+redis['enable'] = true
+
+sidekiq['enable'] = true
+sidekiq['concurrency'] = 25
+
+prometheus['enable'] = true
+grafana['enable'] = false  # Activer si vous souhaitez utiliser Grafana
+
+unicorn['worker_timeout'] = 60
+unicorn['worker_processes'] = 4
+postgresql['shared_buffers'] = "256MB"
+
+gitlab_rails['rack_attack_git_basic_auth'] = {
+  'enabled' => true,
+  'ip_whitelist' => ["127.0.0.1"],
+  'maxretry' => 10,
+  'findtime' => 60,
+  'bantime' => 3600
+}
+
+gitlab_rails['system_hooks_timeout'] = 10
+
